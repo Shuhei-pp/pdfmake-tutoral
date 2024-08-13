@@ -1,0 +1,691 @@
+generator client {
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
+  previewFeatures = ["tracing"]
+}
+
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "./ERD.svg"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model Member {
+  id                        String                     @id @default(cuid())
+  AgencyMember              AgencyMember?
+  OfferCondition            OfferCondition[]
+  OfferConditionApproval    OfferConditionApproval[]
+  OfferDelivery             OfferDelivery[]
+  OfferDeliveryCancellation OfferCancellation[]
+  Offer                     Offer[]
+  MemberProfile             MemberProfile?
+  AgencyMemberProfile       AgencyMemberProfile?
+  BankAccount               BankAccount[]
+  MemberAuth                MemberAuth[]
+  MemberStatusActivity      MemberStatusActivity[]
+  MemberPersonalInformation MemberPersonalInformation?
+  Message                   Message[]
+  MemberSnsAccount          MemberSnsAccount[]
+  ShippingAddress           ShippingAddress[]
+  MemberInvoice             MemberInvoice?
+}
+
+model AgencyMember {
+  id        String   @id @default(cuid())
+  agencyId  String   @db.Char(36)
+  memberId  String   @unique @db.Char(36)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  Agency Agency @relation(fields: [agencyId], references: [id])
+  Member Member @relation(fields: [memberId], references: [id])
+
+  @@index([agencyId])
+  @@index([memberId])
+}
+
+model MemberAuth {
+  id       String @id @default(cuid())
+  authId   String @db.Char(128)
+  memberId String @db.Char(36)
+  authType String @db.Char(32)
+  member   Member @relation(fields: [memberId], references: [id])
+
+  @@index([memberId])
+}
+
+model MemberStatusActivity {
+  id               String   @id @default(cuid())
+  memberId         String   @db.Char(36)
+  activityType     String   @db.Char(32)
+  activityDateTime DateTime @db.DateTime(6)
+
+  Member                    Member                     @relation(fields: [memberId], references: [id])
+  MemberPersonalInformation MemberPersonalInformation?
+  MemberScreening           MemberScreening?
+
+  @@index([memberId])
+}
+
+model MemberPersonalInformation {
+  id                     String    @id @default(cuid())
+  memberStatusActivityId String    @unique @db.Char(36)
+  memberId               String    @unique @db.Char(36)
+  name                   String?   @db.VarChar(128)
+  nameKana               String?   @db.VarChar(128)
+  birthday               DateTime? @db.Date
+  gender                 Int?      @db.Int
+
+  Member               Member               @relation(fields: [memberId], references: [id])
+  MemberStatusActivity MemberStatusActivity @relation(fields: [memberStatusActivityId], references: [id])
+
+  @@index([memberId])
+  @@index([memberStatusActivityId])
+}
+
+model MemberSnsAccount {
+  id            String @id @default(cuid())
+  memberId      String @db.Char(36)
+  snsType       String @db.Char(32)
+  snsAccountUrl String @db.VarChar(128)
+
+  Member Member @relation(fields: [memberId], references: [id])
+
+  @@index([memberId])
+}
+
+model Admin {
+  id           String   @id @unique @default(cuid())
+  adminClerkId String   @unique @db.Char(72)
+  adminRole    String   @db.VarChar(32)
+  name         String?  @db.VarChar(64)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  MemberScreening MemberScreening[]
+  OfferRakuRaku   OfferRakuraku[]
+}
+
+model MemberScreening {
+  id                     String  @id @default(cuid())
+  memberStatusActivityId String  @unique @db.Char(36)
+  memberId               String  @db.Char(36)
+  result                 String  @db.Char(32)
+  reason                 String? @db.VarChar(4096)
+  adminId                String? @db.Char(36)
+
+  MemberStatusActivity MemberStatusActivity @relation(fields: [memberStatusActivityId], references: [id])
+  admin                Admin?               @relation(fields: [adminId], references: [id])
+
+  @@index([memberId])
+  @@index([memberStatusActivityId])
+  @@index([adminId])
+}
+
+model MemberProfile {
+  id               String   @id @default(cuid())
+  memberId         String   @unique @db.Char(36)
+  nickname         String   @db.VarChar(128)
+  profileImageId   String?  @db.Char(64)
+  selfIntroduction String?  @db.VarChar(4096)
+  createdAt        DateTime @default(now())
+
+  Member Member @relation(fields: [memberId], references: [id])
+
+  @@index([memberId])
+}
+
+model AgencyMemberProfile {
+  id               String    @id @default(cuid())
+  memberId         String    @unique @db.Char(36)
+  nickname         String    @db.VarChar(128)
+  profileImageId   String    @db.Char(64)
+  selfIntroduction String    @db.VarChar(4096)
+  gender           Int?      @db.Int
+  birthday         DateTime? @db.Date
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  Member Member @relation(fields: [memberId], references: [id])
+
+  @@index([memberId])
+}
+
+model BankAccount {
+  id            String   @id @default(cuid())
+  memberId      String   @db.Char(36)
+  bankCode      String   @db.VarChar(4)
+  bankName      String   @db.VarChar(128)
+  branchCode    String   @db.VarChar(3)
+  branchName    String   @db.VarChar(128)
+  accountNumber String   @db.VarChar(40)
+  accountName   String   @db.VarChar(200)
+  accountType   String   @db.Char(32)
+  createdAt     DateTime @default(now())
+
+  Member Member @relation(fields: [memberId], references: [id])
+
+  @@index([memberId])
+}
+
+model ShippingAddress {
+  id           String   @id @default(cuid())
+  memberId     String   @db.Char(36)
+  name         String   @db.VarChar(128)
+  postalCode   String   @db.VarChar(8)
+  prefecture   String   @db.VarChar(5)
+  addressLine1 String   @db.VarChar(1024)
+  addressLine2 String   @db.VarChar(1024)
+  phoneNumber  String   @db.VarChar(20)
+  active       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  Member         Member           @relation(fields: [memberId], references: [id])
+  OfferCondition OfferCondition[]
+
+  @@index([memberId])
+}
+
+model MemberInvoice {
+  id            String   @id @default(cuid())
+  memberId      String   @unique @db.Char(36)
+  invoiceNumber String   @db.VarChar(32)
+  Member        Member   @relation(fields: [memberId], references: [id])
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  @@index([memberId])
+}
+
+model Advertiser {
+  id                 String               @id @default(cuid())
+  name               String               @db.VarChar(128)
+  createdAt          DateTime             @default(now())
+  cloudflareImageId  String               @default("") @db.Char(64)
+  brands             Brand[]
+  managers           Manager[]
+  managerAuth        ManagerAuth[]
+  advertiserActivity AdvertiserActivity[]
+}
+
+model AdvertiserActivity {
+  id               String   @id @default(cuid())
+  advertiserId     String   @db.Char(36)
+  activityType     String   @db.Char(64)
+  activityDateTime DateTime @db.DateTime(6)
+
+  Advertiser Advertiser @relation(fields: [advertiserId], references: [id])
+
+  @@index([advertiserId])
+}
+
+model Manager {
+  id                     String                   @id @default(cuid())
+  advertiserId           String                   @db.Char(36)
+  name                   String                   @db.VarChar(128)
+  nameKana               String?                  @db.VarChar(128)
+  createdAt              DateTime                 @default(now())
+  advertiser             Advertiser               @relation(fields: [advertiserId], references: [id])
+  managerAuth            ManagerAuth[]
+  OfferConditionApproval OfferConditionApproval[]
+  OfferCondition         OfferCondition[]
+  OfferDraftApproval     OfferDraftApproval[]
+  OfferDeliveryApproval  OfferDeliveryApproval[]
+  OfferDeliveryRejection OfferDeliveryRejection[]
+  OfferCancellation      OfferCancellation[]
+  Message                Message[]
+
+  @@index([advertiserId])
+}
+
+model ManagerAuth {
+  authId       String      @id @db.Char(36)
+  managerId    String      @db.Char(36)
+  manager      Manager     @relation(fields: [managerId], references: [id])
+  advertiser   Advertiser? @relation(fields: [advertiserId], references: [id])
+  advertiserId String?
+
+  @@index([managerId])
+  @@index([advertiserId])
+}
+
+model Brand {
+  id                String            @id @default(cuid())
+  advertiserId      String            @db.Char(36)
+  name              String            @db.VarChar(128)
+  officialSiteUrl   String?           @db.VarChar(1024)
+  cloudflareImageId String            @db.Char(64)
+  createdAt         DateTime          @default(now())
+  advertiser        Advertiser        @relation(fields: [advertiserId], references: [id])
+  products          Product[]
+  brandAllProducts  BrandAllProducts?
+
+  @@index([advertiserId])
+}
+
+model Product {
+  id               String            @id @default(cuid())
+  brandId          String            @db.Char(36)
+  productHistoryId String            @unique @db.Char(36)
+  createdAt        DateTime          @default(now())
+  brand            Brand             @relation(fields: [brandId], references: [id])
+  productHistory   ProductHistory    @relation(fields: [productHistoryId], references: [id])
+  brandAllProducts BrandAllProducts?
+  Offer            Offer[]
+
+  @@index([brandId, productHistoryId])
+}
+
+model BrandAllProducts {
+  id        String   @id @default(cuid())
+  brandId   String   @unique @db.Char(36)
+  productId String   @unique @db.Char(36)
+  createdAt DateTime @default(now())
+
+  brand   Brand   @relation(fields: [brandId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model ProductHistory {
+  id                    String               @id @default(cuid())
+  productId             String               @db.Char(36)
+  name                  String               @db.VarChar(128)
+  isEvent               Boolean              @default(false)
+  officialAccountId     String               @db.Char(72)
+  orderDesiredStartDate DateTime?            @db.Date
+  orderDesiredEndDate   DateTime?            @db.Date
+  status                String               @db.Char(16)
+  createdAt             DateTime             @default(now())
+  isBoost               Boolean              @default(false)
+  maxRewardStatus       String               @default("unselected") @db.Char(64)
+  maxRewardAmount       Int?                 @db.Int
+  //NOTE:増える可能性を加味して1:Nの関係にしている
+  images                ProductImage[]
+  productCategories     ProductCategory[]
+  descriptions          ProductDescription[]
+  Product               Product?
+
+  @@index([productId])
+}
+
+model ProductDescription {
+  id                       String         @id @default(cuid())
+  productHistoryId         String         @db.Char(36)
+  productDescriptionTypeId String         @db.Char(32)
+  productDescriptionDetail String         @db.VarChar(4096)
+  createdAt                DateTime       @default(now())
+  ProductHistory           ProductHistory @relation(fields: [productHistoryId], references: [id])
+
+  @@index([productHistoryId])
+}
+
+model ProductImage {
+  id                String         @id @default(cuid())
+  productHistoryId  String         @db.Char(36)
+  cloudflareImageId String         @db.Char(64)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  ProductHistory    ProductHistory @relation(fields: [productHistoryId], references: [id])
+
+  @@index([productHistoryId])
+}
+
+model ProductCategory {
+  id               String   @id @default(cuid())
+  productHistoryId String   @db.Char(36)
+  categoryId       String   @db.Char(36)
+  createdAt        DateTime @default(now())
+
+  ProductHistory ProductHistory @relation(fields: [productHistoryId], references: [id])
+  Category       Category       @relation(fields: [categoryId], references: [id])
+
+  @@index([productHistoryId])
+  @@index([categoryId])
+}
+
+model Category {
+  id       String  @id @default(cuid())
+  name     String  @db.VarChar(128)
+  parentId String? @db.Char(36)
+
+  productCategories ProductCategory[]
+}
+
+model Offer {
+  id                     String  @id @default(cuid())
+  requestMemberId        String  @db.Char(36)
+  requestAgencyManagerId String? @db.Char(36)
+  productId              String  @db.Char(36)
+  postConcept            String  @db.VarChar(4096)
+  message                String  @db.VarChar(4096)
+
+  Member        Member          @relation(fields: [requestMemberId], references: [id])
+  AgencyManager AgencyManager?  @relation(fields: [requestAgencyManagerId], references: [id])
+  Product       Product         @relation(fields: [productId], references: [id])
+  OfferActivity OfferActivity[]
+  OfferRakuraku OfferRakuraku?
+
+  @@index([requestMemberId])
+  @@index([requestAgencyManagerId])
+  @@index([productId])
+}
+
+model OfferRakuraku {
+  id              String   @id @default(cuid())
+  offerId         String   @unique @db.Char(36)
+  rakurakuOrderId String   @unique @db.Char(36)
+  inputAdminId    String   @db.Char(36)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  Admin Admin @relation(fields: [inputAdminId], references: [id])
+  Offer Offer @relation(fields: [offerId], references: [id])
+
+  @@index([inputAdminId])
+  @@index([offerId])
+}
+
+model OfferActivity {
+  id           String   @id @default(cuid())
+  offerId      String   @db.Char(36)
+  activityType String   @db.Char(32)
+  activityDate DateTime @db.DateTime(6)
+
+  Offer                  Offer                    @relation(fields: [offerId], references: [id])
+  OfferCondition         OfferCondition[]
+  OfferConditionApproval OfferConditionApproval[]
+  OfferDraftApproval     OfferDraftApproval[]
+  OfferDelivery          OfferDelivery[]
+  OfferDeliveryApproval  OfferDeliveryApproval[]
+  OfferDeliveryRejection OfferDeliveryRejection[]
+  OfferCancellation      OfferCancellation[]
+  Message                Message[]
+
+  @@index([offerId])
+}
+
+model OfferCondition {
+  id                      String    @id @default(cuid())
+  offerActivityId         String    @db.Char(36)
+  workType                String    @db.Char(36)
+  postDateRangeStart      DateTime  @db.Date
+  postDateRangeEnd        DateTime  @db.Date
+  draftDeadlineDate       DateTime? @db.Date
+  insightPresentType      String?   @db.Char(10)
+  reward                  Int       @db.Int
+  billing                 Int       @db.Int
+  remarks                 String?   @db.VarChar(4096)
+  shippingAddressId       String?   @db.Char(36)
+  requestMemberId         String?   @db.Char(36)
+  requestManagerId        String?   @db.Char(36)
+  requestAgencyManagerId  String?   @db.Char(36)
+  agencyShippingAddressId String?   @db.Char(36)
+
+  OfferActivity          OfferActivity            @relation(fields: [offerActivityId], references: [id])
+  Member                 Member?                  @relation(fields: [requestMemberId], references: [id])
+  Manager                Manager?                 @relation(fields: [requestManagerId], references: [id])
+  AgencyManager          AgencyManager?           @relation(fields: [requestAgencyManagerId], references: [id])
+  ShippingAddress        ShippingAddress?         @relation(fields: [shippingAddressId], references: [id])
+  AgencyShippingAddress  AgencyShippingAddress?   @relation(fields: [agencyShippingAddressId], references: [id])
+  OfferConditionApproval OfferConditionApproval[]
+  OfferSns               OfferSns[]
+
+  @@index([offerActivityId])
+  @@index([shippingAddressId])
+  @@index([requestAgencyManagerId])
+  @@index([requestMemberId])
+  @@index([requestManagerId])
+  @@index([agencyShippingAddressId])
+}
+
+model OfferSns {
+  offerConditionId String @db.Char(36)
+  snsType          String @db.Char(36)
+
+  OfferCondition OfferCondition @relation(fields: [offerConditionId], references: [id])
+
+  @@id([offerConditionId, snsType])
+  @@index([offerConditionId])
+  @@index([snsType])
+}
+
+model OfferConditionApproval {
+  offerConditionId       String  @id @db.Char(36)
+  offerActivityId        String  @db.Char(36)
+  approveManagerId       String? @db.Char(36)
+  approveMemberId        String? @db.Char(36)
+  approveAgencyManagerId String? @db.Char(36)
+
+  OfferActivity  OfferActivity  @relation(fields: [offerActivityId], references: [id])
+  OfferCondition OfferCondition @relation(fields: [offerConditionId], references: [id])
+  Manager        Manager?       @relation(fields: [approveManagerId], references: [id])
+  Member         Member?        @relation(fields: [approveMemberId], references: [id])
+  AgencyManager  AgencyManager? @relation(fields: [approveAgencyManagerId], references: [id])
+
+  @@index([offerActivityId])
+  @@index([offerConditionId])
+  @@index([approveManagerId])
+  @@index([approveMemberId])
+  @@index([approveAgencyManagerId])
+}
+
+model OfferDraftApproval {
+  id               String @id @default(cuid())
+  offerActivityId  String @db.Char(36)
+  approveManagerId String @db.Char(36)
+
+  OfferActivity OfferActivity @relation(fields: [offerActivityId], references: [id])
+  Manager       Manager?      @relation(fields: [approveManagerId], references: [id])
+
+  @@index([offerActivityId])
+  @@index([approveManagerId])
+}
+
+model OfferDelivery {
+  id                    String  @id @default(cuid())
+  offerActivityId       String  @db.Char(36)
+  submitMemberId        String  @db.Char(36)
+  submitAgencyManagerId String? @db.Char(36)
+
+  OfferActivity          OfferActivity            @relation(fields: [offerActivityId], references: [id])
+  Member                 Member                   @relation(fields: [submitMemberId], references: [id])
+  AgencyManager          AgencyManager?           @relation(fields: [submitAgencyManagerId], references: [id])
+  OfferDeliveryApproval  OfferDeliveryApproval[]
+  OfferDeliveryRejection OfferDeliveryRejection[]
+  OfferDeliveryPostUrl   OfferDeliveryPostUrl[]
+
+  @@index([offerActivityId])
+  @@index([submitMemberId])
+  @@index([submitAgencyManagerId])
+}
+
+model OfferDeliveryPostUrl {
+  id              String @id @default(cuid())
+  offerDeliveryId String @db.Char(36)
+  url             String @db.VarChar(4096)
+
+  OfferDelivery OfferDelivery @relation(fields: [offerDeliveryId], references: [id])
+
+  @@index([offerDeliveryId])
+}
+
+model OfferDeliveryApproval {
+  offerDeliveryId  String @id @db.Char(36)
+  offerActivityId  String @db.Char(36)
+  approveManagerId String @db.Char(36)
+
+  OfferDelivery OfferDelivery @relation(fields: [offerDeliveryId], references: [id])
+  OfferActivity OfferActivity @relation(fields: [offerActivityId], references: [id])
+  Manager       Manager       @relation(fields: [approveManagerId], references: [id])
+
+  @@index([offerDeliveryId])
+  @@index([offerActivityId])
+  @@index([approveManagerId])
+}
+
+model OfferDeliveryRejection {
+  offerDeliveryId String @id @db.Char(36)
+  offerActivityId String @db.Char(36)
+  rejectManagerId String @db.Char(36)
+  rejectComment   String @db.VarChar(4096)
+
+  OfferDelivery OfferDelivery @relation(fields: [offerDeliveryId], references: [id])
+  OfferActivity OfferActivity @relation(fields: [offerActivityId], references: [id])
+  Manager       Manager       @relation(fields: [rejectManagerId], references: [id])
+
+  @@index([offerDeliveryId])
+  @@index([offerActivityId])
+  @@index([rejectManagerId])
+}
+
+model OfferCancellation {
+  id                    String  @id @default(cuid())
+  offerActivityId       String  @db.Char(36)
+  cancelMemberId        String? @db.Char(36)
+  cancelManagerId       String? @db.Char(36)
+  cancelAgencyManagerId String? @db.Char(36)
+  cancelReason          String  @db.Char(36)
+  cancelMessage         String  @db.VarChar(4096)
+
+  OfferActivity OfferActivity  @relation(fields: [offerActivityId], references: [id])
+  Member        Member?        @relation(fields: [cancelMemberId], references: [id])
+  Manager       Manager?       @relation(fields: [cancelManagerId], references: [id])
+  AgencyManager AgencyManager? @relation(fields: [cancelAgencyManagerId], references: [id])
+
+  @@index([offerActivityId])
+  @@index([cancelMemberId])
+  @@index([cancelManagerId])
+  @@index([cancelAgencyManagerId])
+}
+
+model Message {
+  id                  String   @id @default(cuid())
+  content             String   @db.VarChar(4096)
+  offerActivityId     String   @db.Char(36)
+  createdAt           DateTime @default(now())
+  postMemberId        String?  @db.Char(36)
+  postManagerId       String?  @db.Char(36)
+  postAgencyManagerId String?  @db.Char(36)
+
+  OfferActivity     OfferActivity       @relation(fields: [offerActivityId], references: [id])
+  MessageAttachment MessageAttachment[]
+  Member            Member?             @relation(fields: [postMemberId], references: [id])
+  Manager           Manager?            @relation(fields: [postManagerId], references: [id])
+  AgencyManager     AgencyManager?      @relation(fields: [postAgencyManagerId], references: [id])
+
+  @@index([offerActivityId])
+  @@index([postMemberId])
+  @@index([postManagerId])
+  @@index([postAgencyManagerId])
+}
+
+model MessageAttachment {
+  id                 String   @id @default(cuid())
+  mimeType           String   @db.VarChar(128)
+  contentId          String?  @db.Char(36)
+  binaryName         String?  @db.VarChar(128)
+  r2UniqueBinaryName String?  @db.VarChar(255)
+  binarySize         Int?     @db.Int
+  messageId          String   @db.Char(36)
+  createdAt          DateTime @default(now())
+
+  Message Message @relation(fields: [messageId], references: [id])
+
+  @@index([messageId])
+}
+
+model Agency {
+  id                String   @id @default(cuid())
+  name              String   @db.VarChar(512)
+  nameKana          String   @db.VarChar(512)
+  ceoName           String   @db.VarChar(128)
+  postalCode        String   @db.VarChar(8)
+  prefecture        String   @db.VarChar(5)
+  addressLine1      String   @db.VarChar(1024)
+  addressLine2      String   @db.VarChar(1024)
+  phoneNumber       String   @db.VarChar(20)
+  companyUrl        String   @db.VarChar(1024)
+  cloudflareImageId String?  @db.Char(64)
+  updatedAt         DateTime @updatedAt
+  createdAt         DateTime @default(now())
+
+  AgencyMember          AgencyMember[]
+  AgencyShippingAddress AgencyShippingAddress[]
+  AgencyBankAccount     AgencyBankAccount[]
+  AgencyManager         AgencyManager[]
+  AgencyManagerAuth     AgencyManagerAuth[]
+}
+
+model AgencyShippingAddress {
+  id           String   @id @default(cuid())
+  agencyId     String   @db.Char(36)
+  name         String   @db.VarChar(128)
+  postalCode   String   @db.VarChar(8)
+  prefecture   String   @db.VarChar(5)
+  addressLine1 String   @db.VarChar(1024)
+  addressLine2 String   @db.VarChar(1024)
+  phoneNumber  String   @db.VarChar(1024)
+  active       Boolean  @default(false)
+  isArchived   Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
+
+  agency         Agency           @relation(fields: [agencyId], references: [id])
+  OfferCondition OfferCondition[]
+
+  @@index([agencyId])
+}
+
+model AgencyBankAccount {
+  id            String   @id @default(cuid())
+  agencyId      String   @db.Char(36)
+  bankCode      String   @db.VarChar(512)
+  branchCode    String   @db.VarChar(512)
+  accountNumber String   @db.VarChar(512)
+  accountName   String   @db.VarChar(1024)
+  accountType   String   @db.Char(32)
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  agency Agency @relation(fields: [agencyId], references: [id])
+
+  @@index([agencyId])
+}
+
+model AgencyManager {
+  id          String   @id @default(cuid())
+  agencyId    String   @db.Char(36)
+  name        String   @db.VarChar(128)
+  nameKana    String   @db.VarChar(128)
+  phoneNumber String   @db.VarChar(20)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  agencyManagerAuth      AgencyManagerAuth[]
+  agency                 Agency                   @relation(fields: [agencyId], references: [id])
+  OfferCondition         OfferCondition[]
+  offerConditionApproval OfferConditionApproval[]
+  offerCancellation      OfferCancellation[]
+  offer                  Offer[]
+  message                Message[]
+  offerDelivery          OfferDelivery[]
+
+  @@index([agencyId])
+}
+
+model AgencyManagerAuth {
+  authId          String @id @db.Char(36)
+  agencyId        String @db.Char(36)
+  agencyManagerId String @db.Char(36)
+
+  agencyManager AgencyManager @relation(fields: [agencyManagerId], references: [id])
+  agency        Agency        @relation(fields: [agencyId], references: [id])
+
+  @@index([agencyManagerId])
+  @@index([agencyId])
+}
